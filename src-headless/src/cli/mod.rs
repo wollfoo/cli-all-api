@@ -6,7 +6,9 @@
 //! Main CLI definition is in main.rs using clap derive.
 
 pub mod commands;
+pub mod health;
 
 // Re-export common types
 // **Re-export** (Xuất lại - export các types thường dùng)
 pub use commands::*;
+pub use health::*;

@@ -175,8 +175,39 @@ EXAMPLES:
 
     /// Show proxy health and provider status
     #[command(visible_alias = "health")]
+    #[command(after_help = "\
+EXAMPLES:
+    # Basic health check
+    proxypal check
+
+    # Health check with custom PID file and port
+    proxypal check --pid-file /var/run/proxypal.pid --port 8080
+
+    # JSON output for scripting
+    proxypal check --json
+
+    # Check specific provider
+    proxypal check --provider gemini
+")]
     Check {
-        /// Provider to check (omit for all)
+        /// PID file path
+        #[arg(
+            long, 
+            default_value = "/tmp/proxypal.pid",
+            value_hint = ValueHint::FilePath,
+            value_name = "PATH"
+        )]
+        pid_file: String,
+
+        /// Port to check (default: 8317)
+        #[arg(short = 'P', long, default_value = "8317", value_name = "PORT")]
+        port: u16,
+
+        /// Output in JSON format
+        #[arg(short, long)]
+        json: bool,
+
+        /// Specific provider to check (omit for all)
         #[arg(short, long, value_name = "PROVIDER")]
         provider: Option<String>,
     },
@@ -227,14 +258,21 @@ enum AuthAction {
     /// Add authentication credentials for a provider
     #[command(after_help = "\
 SUPPORTED PROVIDERS:
-    gemini   - Google Gemini API (requires API key)
-    claude   - Anthropic Claude API (requires API key)
-    openai   - OpenAI API (requires API key)
-    codex    - OpenAI Codex API (requires API key)
-    vertex   - Google Vertex AI (requires service account JSON)
-    qwen     - Alibaba Qwen API (requires API key)
+    gemini   - Google Gemini API (API key or device code flow)
+    copilot  - GitHub Copilot (device code flow)
+    claude   - Anthropic Claude API (API key only)
+    openai   - OpenAI API (API key only)
+    codex    - OpenAI Codex API (API key only)
+    vertex   - Google Vertex AI (service account JSON)
+    qwen     - Alibaba Qwen API (API key only)
 
 EXAMPLES:
+    # Use device code flow for Gemini (recommended)
+    proxypal auth add --provider gemini --device-code
+
+    # Use device code flow for Copilot
+    proxypal auth add --provider copilot --device-code
+
     # Add Gemini API key directly
     proxypal auth add --provider gemini --api-key AIzaSy...
 
@@ -243,11 +281,14 @@ EXAMPLES:
 
     # Import Vertex AI service account
     proxypal auth add --provider vertex --file service-account.json
+
+    # Interactive mode (select provider and method)
+    proxypal auth add
 ")]
     Add {
-        /// Provider name (gemini, claude, openai, codex, vertex, qwen)
+        /// Provider name (omit for interactive selection)
         #[arg(short, long, value_name = "PROVIDER")]
-        provider: String,
+        provider: Option<String>,
 
         /// API key (use '-' to read from stdin)
         #[arg(short = 'k', long, value_name = "KEY")]
@@ -256,6 +297,14 @@ EXAMPLES:
         /// Import credential file (JSON format)
         #[arg(short, long, value_hint = ValueHint::FilePath, value_name = "FILE")]
         file: Option<String>,
+
+        /// Use device code flow (for gemini, copilot)
+        #[arg(short = 'd', long)]
+        device_code: bool,
+
+        /// OAuth client ID (required for device code flow)
+        #[arg(long, value_name = "CLIENT_ID", env = "PROXYPAL_OAUTH_CLIENT_ID")]
+        client_id: Option<String>,
     },
 
     /// Remove authentication for a provider
@@ -366,9 +415,17 @@ async fn main() -> Result<()> {
         
         Commands::Auth { action } => {
             match action {
-                AuthAction::Add { provider, api_key, file } => {
-                    info!("Adding authentication for provider: {}", provider);
-                    auth::add(&provider, api_key.as_deref(), file.as_deref()).await?;
+                AuthAction::Add { provider, api_key, file, device_code, client_id } => {
+                    match provider {
+                        Some(p) => {
+                            info!("Adding authentication for provider: {}", p);
+                            auth::add(&p, api_key.as_deref(), file.as_deref(), device_code, client_id.as_deref()).await?;
+                        }
+                        None => {
+                            info!("Starting interactive authentication flow...");
+                            auth::add_interactive(client_id.as_deref()).await?;
+                        }
+                    }
                 }
                 AuthAction::Remove { provider } => {
                     info!("Removing authentication for provider: {}", provider);
@@ -394,11 +451,31 @@ async fn main() -> Result<()> {
             proxy::status(&pid_file)?;
         }
 
-        Commands::Check { provider } => {
-            // TODO: Implement health check
+        Commands::Check { pid_file, port, json, provider } => {
+            // Run health check - kiểm tra sức khỏe service
             match provider {
-                Some(p) => println!("Health check for provider '{}' not yet implemented", p),
-                None => println!("Health check for all providers not yet implemented"),
+                Some(p) => {
+                    // Check specific provider
+                    info!("Checking health for provider: {}", p);
+                    let check = cli::check_provider_health(&p).await?;
+                    if json {
+                        println!(r#"{{"provider":"{}","passed":{},"message":"{}"}}"#, 
+                            p, check.passed, check.message);
+                    } else {
+                        let icon = if check.passed { "✓" } else { "✗" };
+                        println!("{} Provider '{}': {}", icon, p, check.message);
+                    }
+                    if !check.passed {
+                        std::process::exit(1);
+                    }
+                }
+                None => {
+                    // Full health check
+                    let exit_code = cli::run_health_check(&pid_file, port, json).await?;
+                    if exit_code != 0 {
+                        std::process::exit(exit_code);
+                    }
+                }
             }
         }
     }

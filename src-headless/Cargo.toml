@@ -44,6 +44,8 @@ regex = "1.11"
 uuid = { version = "1.11", features = ["v4"] }
 # **Lazy Static** (Lazy initialization - khởi tạo biến static lazy)
 lazy_static = "1.5"
+# **Dialoguer** (Interactive CLI - tạo prompt tương tác trên terminal)
+dialoguer = { version = "0.11", features = ["completion"] }
 
 # Logging & Tracing
 # **Tracing** (Structured Logging - ghi log có cấu trúc)
