@@ -1,0 +1,91 @@
+[package]
+name = "proxypal-headless"
+version = "0.1.0"
+edition = "2021"
+description = "ProxyPal headless daemon - CLI proxy server for AI coding agents"
+authors = ["ProxyPal Team"]
+license = "MIT"
+repository = "https://github.com/wollfoo/cli-all-api"
+readme = "README.md"
+keywords = ["proxy", "ai", "cli", "daemon", "headless"]
+categories = ["command-line-utilities", "network-programming"]
+
+[[bin]]
+name = "proxypal"
+path = "src/main.rs"
+
+[dependencies]
+# CLI argument parsing
+# **Clap** (Command Line Argument Parser - thư viện parse tham số dòng lệnh)
+clap = { version = "4.5", features = ["derive", "env", "color"] }
+
+# Serialization/Deserialization
+# **Serde** (Serialization/Deserialization - chuyển đổi struct sang/từ JSON/YAML)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# HTTP client for Management API calls
+# **Reqwest** (HTTP Client - gọi REST API)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Async runtime
+# **Tokio** (Async Runtime - xử lý bất đồng bộ)
+tokio = { version = "1.42", features = ["full"] }
+
+# Utilities
+# **Chrono** (Date/Time - xử lý ngày giờ)
+chrono = { version = "0.4", features = ["serde"] }
+# **Dirs** (Platform Directories - lấy đường dẫn thư mục hệ thống)
+dirs = "6.0"
+# **Regex** (Regular Expressions - xử lý biểu thức chính quy)
+regex = "1.11"
+# **UUID** (Universally Unique Identifier - tạo ID duy nhất)
+uuid = { version = "1.11", features = ["v4"] }
+# **Lazy Static** (Lazy initialization - khởi tạo biến static lazy)
+lazy_static = "1.5"
+
+# Logging & Tracing
+# **Tracing** (Structured Logging - ghi log có cấu trúc)
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+
+# Error handling
+# **Anyhow** (Error Handling - xử lý lỗi linh hoạt)
+anyhow = "1.0"
+# **Thiserror** (Custom Error Types - định nghĩa error types)
+thiserror = "2.0"
+
+# Signal handling for graceful shutdown
+# **Ctrlc** (Signal Handler - xử lý tín hiệu SIGINT/SIGTERM)
+ctrlc = "3.4"
+
+# PID file for daemon mode
+# **Daemonize** (Daemon Process - chạy như background service)
+daemonize = "0.5"
+
+# Find binaries in PATH
+# **Which** (Tìm binary - tìm executable trong PATH)
+which = "7.0"
+
+# Unix system calls (for signal handling)
+# **Libc** (C Library - gọi hàm hệ thống Unix)
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# Config file watching (optional, for hot reload)
+# **Notify** (File Watcher - theo dõi thay đổi file)
+notify = "7.0"
+
+[dev-dependencies]
+# **Tempfile** (Temporary Files - tạo file tạm cho testing)
+tempfile = "3.14"
+# **Tokio Test** (Async Testing - test async functions)
+tokio-test = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
