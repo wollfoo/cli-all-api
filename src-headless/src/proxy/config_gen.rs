@@ -20,15 +20,19 @@ pub fn generate_proxy_config(config: &AppConfig) -> Result<PathBuf> {
     
     // Build proxy URL line if configured
     // **Proxy URL** (URL Proxy - proxy cho outbound requests)
-    let proxy_url_line = config.proxy_url.as_ref()
-        .map(|url| format!("proxy-url: \"{}\"\n", url))
-        .unwrap_or_default();
+    let proxy_url_line = if !config.proxy_url.is_empty() {
+        format!("proxy-url: \"{}\"\n", config.proxy_url)
+    } else {
+        String::new()
+    };
     
     // Build Amp API key line if configured
     // **Amp API Key** (Key Amp - cho Amp CLI integration)
-    let amp_api_key_line = config.amp_api_key.as_ref()
-        .map(|key| format!("  api-key: \"{}\"\n", key))
-        .unwrap_or_default();
+    let amp_api_key_line = if !config.amp_api_key.is_empty() {
+        format!("  api-key: \"{}\"\n", config.amp_api_key)
+    } else {
+        String::new()
+    };
     
     // Build Amp model mappings section
     // **Model Mappings** (Ánh xạ Model - mapping cho Amp CLI)
@@ -138,8 +142,8 @@ fn build_openai_compat_section(config: &AppConfig) -> String {
             section.push_str("    models:\n");
             for model in &provider.models {
                 section.push_str(&format!("      - name: \"{}\"\n", model.name));
-                if let Some(alias) = &model.alias {
-                    section.push_str(&format!("        alias: \"{}\"\n", alias));
+                if !model.alias.is_empty() {
+                    section.push_str(&format!("        alias: \"{}\"\n", model.alias));
                 }
             }
         }

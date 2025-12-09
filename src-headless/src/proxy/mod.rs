@@ -8,20 +8,19 @@
 //! - Health checks and status monitoring
 //! - Signal handling for graceful shutdown
 
-mod config_gen;
-mod process;
+pub mod config_gen;
+pub mod process;
 
 pub use config_gen::*;
 pub use process::*;
 
-use crate::config::load_config;
+use crate::config::load_config_yaml;
 use anyhow::{Result, Context, bail};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{info, error, warn};
 
 /// Static flag for shutdown signal
-/// **SHUTDOWN_FLAG** (Cờ tắt - flag shutdown toàn cục)
 static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 /// Start the proxy server
@@ -33,12 +32,10 @@ pub async fn serve(
     pid_file: &str,
 ) -> Result<()> {
     // Load configuration
-    // **Load** (Tải - đọc config từ file)
-    let mut config = load_config(config_path)
+    let mut config = load_config_yaml(config_path)
         .context("Failed to load configuration")?;
     
     // Apply port override if specified
-    // **Override** (Ghi đè - thay đổi port nếu có tham số)
     if let Some(port) = port_override {
         config.port = port;
     }
@@ -46,39 +43,30 @@ pub async fn serve(
     info!("Starting ProxyPal on port {}", config.port);
     
     // Setup signal handler
-    // **Signal Handler** (Xử lý tín hiệu - bắt SIGINT/SIGTERM)
     setup_signal_handler()?;
     
     if !foreground {
-        // TODO: Implement daemonization
-        // **Daemonize** (Chạy nền - chuyển sang daemon mode)
         warn!("Daemon mode not yet implemented, running in foreground");
     }
     
     // Generate CLIProxyAPI config
-    // **Generate Config** (Tạo config - sinh proxy-config.yaml)
     let proxy_config_path = generate_proxy_config(&config)?;
     info!("Generated proxy config: {}", proxy_config_path.display());
     
     // Start CLIProxyAPI process
-    // **Start Process** (Khởi động process - chạy CLIProxyAPI)
-    let mut child = start_cliproxyapi(&proxy_config_path)?;
+    let mut handle = start_cliproxyapi(&proxy_config_path)?;
     
     // Write PID file
-    // **PID File** (File PID - lưu process ID)
-    let pid = child.id();
+    let pid = handle.id();
     std::fs::write(pid_file, pid.to_string())
         .context("Failed to write PID file")?;
     info!("PID file written: {} (PID: {})", pid_file, pid);
     
     // Wait for shutdown signal
-    // **Wait** (Chờ - chờ tín hiệu shutdown)
     info!("Proxy server running. Press Ctrl+C to stop.");
     
     while !SHUTDOWN_REQUESTED.load(Ordering::Relaxed) {
-        // Check if process is still running
-        // **Health Check** (Kiểm tra sức khỏe - xác nhận process còn chạy)
-        match child.try_wait() {
+        match handle.try_wait() {
             Ok(Some(status)) => {
                 if status.success() {
                     info!("CLIProxyAPI exited normally");
@@ -88,7 +76,6 @@ pub async fn serve(
                 break;
             }
             Ok(None) => {
-                // Still running, sleep a bit
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
             Err(e) => {
@@ -99,10 +86,9 @@ pub async fn serve(
     }
     
     // Cleanup
-    // **Cleanup** (Dọn dẹp - dừng process và xóa PID file)
     info!("Shutting down...");
     
-    if let Err(e) = child.kill() {
+    if let Err(e) = handle.kill() {
         warn!("Failed to kill process: {}", e);
     }
     
@@ -132,23 +118,7 @@ pub fn stop(pid_file: &str) -> Result<()> {
     
     info!("Sending SIGTERM to process {}", pid);
     
-    // Send SIGTERM
-    // **SIGTERM** (Tín hiệu dừng - gửi signal để dừng process)
-    #[cfg(unix)]
-    {
-        unsafe {
-            libc::kill(pid as i32, libc::SIGTERM);
-        }
-    }
-    
-    #[cfg(windows)]
-    {
-        // On Windows, use taskkill
-        std::process::Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/F"])
-            .output()
-            .context("Failed to kill process")?;
-    }
+    kill_by_pid(pid)?;
     
     // Remove PID file
     std::fs::remove_file(pid_path)?;
@@ -175,8 +145,6 @@ pub fn status(pid_file: &str) -> Result<()> {
     let pid: u32 = pid_str.trim().parse()
         .context("Invalid PID in file")?;
     
-    // Check if process is running
-    // **Check Process** (Kiểm tra process - xác nhận còn chạy không)
     let running = is_process_running(pid);
     
     if running {
@@ -193,7 +161,6 @@ pub fn status(pid_file: &str) -> Result<()> {
 }
 
 /// Setup signal handler for graceful shutdown
-/// **setup_signal_handler** (Cài đặt signal handler - bắt SIGINT/SIGTERM)
 fn setup_signal_handler() -> Result<()> {
     ctrlc::set_handler(move || {
         info!("Received shutdown signal");
@@ -201,29 +168,4 @@ fn setup_signal_handler() -> Result<()> {
     }).context("Failed to set signal handler")?;
     
     Ok(())
-}
-
-/// Check if a process is running
-/// **is_process_running** (Kiểm tra process chạy - xác nhận PID còn active)
-fn is_process_running(pid: u32) -> bool {
-    #[cfg(unix)]
-    {
-        // Send signal 0 to check if process exists
-        unsafe { libc::kill(pid as i32, 0) == 0 }
-    }
-    
-    #[cfg(windows)]
-    {
-        use std::process::Command;
-        Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {}", pid)])
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
-            .unwrap_or(false)
-    }
-    
-    #[cfg(not(any(unix, windows)))]
-    {
-        false
-    }
 }

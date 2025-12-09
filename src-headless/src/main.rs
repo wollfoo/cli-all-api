@@ -2,199 +2,364 @@
 //! 
 //! **ProxyPal Headless** (CLI daemon - chạy proxy server như background service)
 //! 
-//! This binary provides a headless (không giao diện) version of ProxyPal
-//! that can run as a daemon service on Ubuntu (systemd) and Windows.
-//! 
-//! ## Usage
-//! 
-//! ```bash
-//! # Start the proxy server
-//! proxypal serve --config config.yaml
-//! 
-//! # Validate configuration
-//! proxypal config validate --config config.yaml
-//! 
-//! # Add authentication
-//! proxypal auth add --provider gemini --api-key YOUR_KEY
-//! ```
+//! A headless (không giao diện) version of ProxyPal that can run as a daemon
+//! service on Ubuntu (systemd) and Windows.
 
 mod cli;
 mod config;
 mod proxy;
 mod auth;
 
-use clap::{Parser, Subcommand};
-use tracing::info;
+use clap::{Parser, Subcommand, ValueHint};
+use tracing::{info, Level};
 use tracing_subscriber::{fmt, EnvFilter};
 use anyhow::Result;
 
-/// ProxyPal Headless - CLI Proxy Server for AI Coding Agents
+// ============================================================================
+// CLI Definition
+// ============================================================================
+
+/// ProxyPal - Headless CLI Proxy Server for AI Coding Agents
 /// 
-/// **ProxyPal** (Proxy server - định tuyến và quản lý yêu cầu API cho AI coding tools)
+/// A unified proxy server that routes AI API requests to multiple providers
+/// (Claude, Gemini, OpenAI, etc.) with authentication management, load
+/// balancing, and quota handling.
 #[derive(Parser)]
 #[command(name = "proxypal")]
-#[command(author = "ProxyPal Team")]
+#[command(author = "ProxyPal Team <team@proxypal.dev>")]
 #[command(version)]
-#[command(about = "Headless proxy server for AI coding agents", long_about = None)]
+#[command(about = "Headless proxy server for AI coding agents")]
+#[command(long_about = "ProxyPal is a unified proxy server that routes AI API requests to multiple \
+providers (Claude, Gemini, OpenAI, Copilot, etc.) with authentication management, \
+load balancing, and quota handling. It enables AI coding tools like Cursor, Continue, \
+and Claude Code to work seamlessly with various AI providers.")]
 #[command(propagate_version = true)]
+#[command(after_help = "\
+EXAMPLES:
+    # Start the proxy server in foreground
+    proxypal serve --foreground
+
+    # Start on a custom port with verbose logging
+    proxypal serve --port 9000 -vv
+
+    # Initialize a new configuration file
+    proxypal config init
+
+    # Validate configuration before starting
+    proxypal config validate
+
+    # Add a Gemini API key
+    proxypal auth add --provider gemini --api-key YOUR_API_KEY
+
+    # Add a Vertex AI service account
+    proxypal auth add --provider vertex --file service-account.json
+
+    # List all configured authentications
+    proxypal auth list
+
+    # Stop a running daemon
+    proxypal stop
+
+For more information, visit: https://github.com/wollfoo/cli-all-api
+")]
 struct Cli {
-    /// Enable verbose logging
-    /// **Verbose** (Chi tiết - hiển thị log debug)
-    #[arg(short, long, global = true)]
-    verbose: bool,
+    /// Increase logging verbosity (-v: info, -vv: debug, -vvv: trace)
+    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
+    verbose: u8,
 
     /// Path to configuration file
-    /// **Config** (Cấu hình - đường dẫn file YAML cấu hình)
-    #[arg(short, long, global = true, default_value = "config.yaml")]
+    #[arg(
+        short, 
+        long, 
+        global = true, 
+        default_value = "~/.config/proxypal/config.yaml",
+        value_hint = ValueHint::FilePath,
+        env = "PROXYPAL_CONFIG"
+    )]
     config: String,
+
+    /// Suppress all output except errors
+    #[arg(short, long, global = true)]
+    quiet: bool,
 
     #[command(subcommand)]
     command: Commands,
 }
 
+// ============================================================================
+// Subcommands
+// ============================================================================
+
 /// Available commands
-/// **Commands** (Lệnh - các subcommand của CLI)
 #[derive(Subcommand)]
 enum Commands {
-    /// Start the proxy server
-    /// **Serve** (Khởi động server - chạy proxy daemon)
+    /// Start the proxy server (daemon mode by default)
+    #[command(visible_alias = "start")]
+    #[command(after_help = "\
+EXAMPLES:
+    # Start in daemon mode (background)
+    proxypal serve
+
+    # Start in foreground with debug logging
+    proxypal serve --foreground -vv
+
+    # Start on custom port
+    proxypal serve --port 9000
+
+    # Use custom config and PID file
+    proxypal serve --config /etc/proxypal/config.yaml --pid-file /var/run/proxypal.pid
+")]
     Serve {
-        /// Port to listen on (overrides config)
-        /// **Port** (Cổng - cổng lắng nghe HTTP)
-        #[arg(short, long)]
+        /// Port to listen on (overrides config file)
+        #[arg(short, long, value_name = "PORT")]
         port: Option<u16>,
 
-        /// Run in foreground (don't daemonize)
-        /// **Foreground** (Chế độ foreground - không chạy nền)
+        /// Run in foreground instead of daemonizing
         #[arg(short, long)]
         foreground: bool,
 
         /// PID file path for daemon mode
-        /// **PID File** (File PID - lưu process ID)
-        #[arg(long, default_value = "/var/run/proxypal.pid")]
+        #[arg(
+            long, 
+            default_value = "/tmp/proxypal.pid",
+            value_hint = ValueHint::FilePath,
+            value_name = "PATH"
+        )]
         pid_file: String,
     },
 
-    /// Configuration management
-    /// **Config** (Cấu hình - quản lý file config)
+    /// Configuration file management
+    #[command(visible_alias = "cfg")]
     Config {
         #[command(subcommand)]
         action: ConfigAction,
     },
 
-    /// Authentication management
-    /// **Auth** (Xác thực - quản lý API keys và OAuth)
+    /// Authentication and API key management
     Auth {
         #[command(subcommand)]
         action: AuthAction,
     },
 
     /// Stop a running daemon
-    /// **Stop** (Dừng - dừng daemon đang chạy)
+    #[command(after_help = "\
+EXAMPLES:
+    # Stop daemon using default PID file
+    proxypal stop
+
+    # Stop daemon using custom PID file
+    proxypal stop --pid-file /var/run/proxypal.pid
+")]
     Stop {
         /// PID file path
-        #[arg(long, default_value = "/var/run/proxypal.pid")]
+        #[arg(
+            long, 
+            default_value = "/tmp/proxypal.pid",
+            value_hint = ValueHint::FilePath,
+            value_name = "PATH"
+        )]
         pid_file: String,
     },
 
     /// Show daemon status
-    /// **Status** (Trạng thái - hiển thị trạng thái daemon)
     Status {
         /// PID file path
-        #[arg(long, default_value = "/var/run/proxypal.pid")]
+        #[arg(
+            long, 
+            default_value = "/tmp/proxypal.pid",
+            value_hint = ValueHint::FilePath,
+            value_name = "PATH"
+        )]
         pid_file: String,
+    },
+
+    /// Show proxy health and provider status
+    #[command(visible_alias = "health")]
+    Check {
+        /// Provider to check (omit for all)
+        #[arg(short, long, value_name = "PROVIDER")]
+        provider: Option<String>,
     },
 }
 
 /// Config subcommands
-/// **ConfigAction** (Hành động cấu hình - validate/show/init config)
 #[derive(Subcommand)]
 enum ConfigAction {
-    /// Validate configuration file
+    /// Validate configuration file syntax and values
+    #[command(after_help = "\
+EXAMPLES:
+    # Validate default config
+    proxypal config validate
+
+    # Validate specific config file
+    proxypal config validate --config /path/to/config.yaml
+")]
     Validate,
-    /// Show current configuration
+
+    /// Show current configuration (YAML format)
     Show,
-    /// Initialize default configuration file
+
+    /// Initialize a new configuration file with defaults
+    #[command(after_help = "\
+EXAMPLES:
+    # Create default config at ~/.config/proxypal/config.yaml
+    proxypal config init
+
+    # Create config at custom location
+    proxypal config init --config /etc/proxypal/config.yaml
+
+    # Overwrite existing config
+    proxypal config init --force
+")]
     Init {
-        /// Overwrite existing config
+        /// Overwrite existing configuration file
         #[arg(short, long)]
         force: bool,
     },
+
+    /// Edit configuration file in default editor
+    Edit,
 }
 
 /// Auth subcommands
-/// **AuthAction** (Hành động xác thực - add/remove/list credentials)
 #[derive(Subcommand)]
 enum AuthAction {
-    /// Add authentication credentials
+    /// Add authentication credentials for a provider
+    #[command(after_help = "\
+SUPPORTED PROVIDERS:
+    gemini   - Google Gemini API (requires API key)
+    claude   - Anthropic Claude API (requires API key)
+    openai   - OpenAI API (requires API key)
+    codex    - OpenAI Codex API (requires API key)
+    vertex   - Google Vertex AI (requires service account JSON)
+    qwen     - Alibaba Qwen API (requires API key)
+
+EXAMPLES:
+    # Add Gemini API key directly
+    proxypal auth add --provider gemini --api-key AIzaSy...
+
+    # Add API key from stdin (more secure)
+    echo 'YOUR_KEY' | proxypal auth add --provider claude --api-key -
+
+    # Import Vertex AI service account
+    proxypal auth add --provider vertex --file service-account.json
+")]
     Add {
-        /// Provider name (gemini, claude, openai, etc.)
-        #[arg(short, long)]
+        /// Provider name (gemini, claude, openai, codex, vertex, qwen)
+        #[arg(short, long, value_name = "PROVIDER")]
         provider: String,
 
-        /// API key (reads from stdin if not provided)
-        #[arg(short = 'k', long)]
+        /// API key (use '-' to read from stdin)
+        #[arg(short = 'k', long, value_name = "KEY")]
         api_key: Option<String>,
 
-        /// Import credential file (JSON)
-        #[arg(short, long)]
+        /// Import credential file (JSON format)
+        #[arg(short, long, value_hint = ValueHint::FilePath, value_name = "FILE")]
         file: Option<String>,
     },
+
     /// Remove authentication for a provider
     Remove {
-        /// Provider name
-        #[arg(short, long)]
+        /// Provider name to remove
+        #[arg(short, long, value_name = "PROVIDER")]
         provider: String,
     },
-    /// List configured authentications
+
+    /// List all configured authentications
     List,
+
+    /// Test authentication for a provider
+    Test {
+        /// Provider name to test
+        #[arg(short, long, value_name = "PROVIDER")]
+        provider: String,
+    },
 }
 
-/// Initialize logging
-/// **init_logging** (Khởi tạo logging - setup tracing subscriber)
-fn init_logging(verbose: bool) {
-    let filter = if verbose {
-        EnvFilter::new("debug")
-    } else {
-        EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new("info"))
+// ============================================================================
+// Logging Setup
+// ============================================================================
+
+/// Initialize logging based on verbosity level
+fn init_logging(verbosity: u8, quiet: bool) {
+    if quiet {
+        // Only errors in quiet mode
+        let filter = EnvFilter::new("error");
+        fmt().with_env_filter(filter).init();
+        return;
+    }
+
+    let level = match verbosity {
+        0 => "info",
+        1 => "info,proxypal=debug",
+        2 => "debug",
+        _ => "trace",
     };
+
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(level));
 
     fmt()
         .with_env_filter(filter)
-        .with_target(true)
-        .with_thread_ids(true)
-        .with_file(true)
-        .with_line_number(true)
+        .with_target(verbosity >= 2)
+        .with_thread_ids(verbosity >= 3)
+        .with_file(verbosity >= 2)
+        .with_line_number(verbosity >= 2)
         .init();
 }
+
+/// Expand tilde in paths
+fn expand_path(path: &str) -> String {
+    if path.starts_with("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return path.replacen("~", home.to_str().unwrap_or("~"), 1);
+        }
+    }
+    path.to_string()
+}
+
+// ============================================================================
+// Main Entry Point
+// ============================================================================
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
     
-    init_logging(cli.verbose);
+    init_logging(cli.verbose, cli.quiet);
     
-    info!("ProxyPal Headless v{}", env!("CARGO_PKG_VERSION"));
+    let config_path = expand_path(&cli.config);
+    
+    if !cli.quiet {
+        info!("ProxyPal Headless v{}", env!("CARGO_PKG_VERSION"));
+    }
 
     match cli.command {
         Commands::Serve { port, foreground, pid_file } => {
             info!("Starting proxy server...");
-            proxy::serve(&cli.config, port, foreground, &pid_file).await?;
+            proxy::serve(&config_path, port, foreground, &pid_file).await?;
         }
         
         Commands::Config { action } => {
             match action {
                 ConfigAction::Validate => {
-                    info!("Validating configuration: {}", cli.config);
-                    config::validate(&cli.config)?;
+                    info!("Validating configuration: {}", config_path);
+                    config::validate(&config_path)?;
                 }
                 ConfigAction::Show => {
-                    config::show(&cli.config)?;
+                    config::show(&config_path)?;
                 }
                 ConfigAction::Init { force } => {
                     info!("Initializing configuration file...");
-                    config::init(&cli.config, force)?;
+                    config::init(&config_path, force)?;
+                }
+                ConfigAction::Edit => {
+                    // Open in default editor
+                    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
+                    info!("Opening {} in {}", config_path, editor);
+                    std::process::Command::new(&editor)
+                        .arg(&config_path)
+                        .status()?;
                 }
             }
         }
@@ -212,6 +377,11 @@ async fn main() -> Result<()> {
                 AuthAction::List => {
                     auth::list().await?;
                 }
+                AuthAction::Test { provider } => {
+                    info!("Testing authentication for provider: {}", provider);
+                    // TODO: Implement auth test
+                    println!("Auth test not yet implemented for: {}", provider);
+                }
             }
         }
         
@@ -222,6 +392,14 @@ async fn main() -> Result<()> {
         
         Commands::Status { pid_file } => {
             proxy::status(&pid_file)?;
+        }
+
+        Commands::Check { provider } => {
+            // TODO: Implement health check
+            match provider {
+                Some(p) => println!("Health check for provider '{}' not yet implemented", p),
+                None => println!("Health check for all providers not yet implemented"),
+            }
         }
     }
 
