@@ -323,6 +323,40 @@ EXAMPLES:
         #[arg(short, long, value_name = "PROVIDER")]
         provider: String,
     },
+
+    /// Import credentials from file or directory
+    #[command(after_help = "\
+SUPPORTED FORMATS:
+    JSON:   {\"api_key\": \"...\", \"provider\": \"...\"}
+    YAML:   api_key: ... \\n provider: ...
+    Env:    ANTHROPIC_API_KEY=sk-ant-...
+    Vertex: Google service account JSON
+
+EXAMPLES:
+    # Import a single JSON file
+    proxypal auth import credentials.json
+
+    # Import with provider override
+    proxypal auth import --provider claude api-key.json
+
+    # Import from env file
+    proxypal auth import .env
+
+    # Import all files from directory
+    proxypal auth import ./credentials/
+
+    # Import Vertex AI service account
+    proxypal auth import service-account.json
+")]
+    Import {
+        /// Path to credential file or directory
+        #[arg(value_hint = ValueHint::AnyPath, value_name = "PATH")]
+        path: String,
+
+        /// Override auto-detected provider
+        #[arg(short, long, value_name = "PROVIDER")]
+        provider: Option<String>,
+    },
 }
 
 // ============================================================================
@@ -438,6 +472,31 @@ async fn main() -> Result<()> {
                     info!("Testing authentication for provider: {}", provider);
                     // TODO: Implement auth test
                     println!("Auth test not yet implemented for: {}", provider);
+                }
+                AuthAction::Import { path, provider } => {
+                    use std::path::Path;
+                    let import_path = Path::new(&path);
+                    
+                    if import_path.is_dir() {
+                        info!("Importing credentials from directory: {}", path);
+                        let results = auth::import_directory(import_path, provider.as_deref())?;
+                        auth::display_import_summary(&results);
+                        
+                        let failed = results.iter().filter(|r| !r.success).count();
+                        if failed > 0 && results.iter().all(|r| !r.success) {
+                            std::process::exit(1);
+                        }
+                    } else {
+                        info!("Importing credential from file: {}", path);
+                        let result = auth::import_file(import_path, provider.as_deref())?;
+                        
+                        if result.success {
+                            println!("✓ {}", result.message);
+                        } else {
+                            eprintln!("✗ Failed: {}", result.message);
+                            std::process::exit(1);
+                        }
+                    }
                 }
             }
         }
