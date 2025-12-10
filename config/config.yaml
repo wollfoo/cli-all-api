@@ -1,1 +1,100 @@
-# ProxyPal config placeholder
+# ProxyPal Configuration
+# Server port
+port: 8317
+# Authentication directory
+auth-dir: "~/.cli-proxy-api"
+# Enable debug logging
+debug: true
+# Quota exceeded behavior
+quota-exceeded:
+  switch-project: true
+  switch-preview-model: true
+# Request retry
+request-retry: 5
+
+# Max wait time for cooled-down credential before retry
+max-retry-interval: 30
+# Usage statistics
+usage-statistics-enabled: true
+# Logging
+logging-to-file: false
+proxy-url: ""
+request-log: false
+api-keys: []
+host: ""
+tls:
+  enable: false
+  cert: ""
+  key: ""
+remote-management:
+  allow-remote: false
+  secret-key: ""
+  disable-control-panel: false
+disable-cooling: false
+ws-auth: false
+
+# =============================================================================
+# Azure AI Foundry - Anthropic Models
+# CLIProxyAPI sends api-key as x-api-key header for Claude API
+# =============================================================================
+# Azure AI Foundry - set AZURE_FOUNDRY_API_KEY environment variable
+# claude-api-key:
+#   - api-key: "${AZURE_FOUNDRY_API_KEY}"
+#     base-url: "https://sharpener-tech-foundry.services.ai.azure.com/anthropic"
+#     models:
+#       - name: "claude-opus-4-5"
+
+ampcode:
+  upstream-url: https://ampcode.com
+  upstream-api-key: ""
+  restrict-management-to-localhost: true
+  model-mappings:
+    # ==========================================================
+    # Smart agent (Claude Opus) -> Antigravity Opus Thinking
+    # ==========================================================
+    - from: claude-opus-4-5-20251101
+      to: gemini-claude-opus-4-5-thinking
+    - from: claude-opus-4.5
+      to: gemini-claude-opus-4-5-thinking
+    - from: claude-opus-4-5
+      to: gemini-claude-opus-4-5-thinking
+    
+    # ==========================================================
+    # Librarian agent (Claude Sonnet) -> Antigravity Sonnet
+    # ==========================================================
+    - from: claude-sonnet-4-5-20250929
+      to: gemini-claude-sonnet-4-5
+    - from: claude-sonnet-4.5
+      to: gemini-claude-sonnet-4-5
+    - from: claude-sonnet-4-5
+      to: gemini-claude-sonnet-4-5
+    
+    # ==========================================================
+    # Rush/Search agent (Claude Haiku) -> Antigravity Sonnet
+    # ==========================================================
+    - from: claude-haiku-4-5-20251001
+      to: gemini-claude-sonnet-4-5
+    - from: claude-haiku-4.5
+      to: gemini-claude-sonnet-4-5
+    - from: claude-haiku-4-5
+      to: gemini-claude-sonnet-4-5
+    
+    # ==========================================================
+    # Oracle agent (GPT-5) -> Antigravity Gemini 3 Pro Preview
+    # ==========================================================
+    - from: gpt-5.1
+      to: gemini-3-pro-preview
+    - from: gpt-5
+      to: gemini-3-pro-preview
+    
+    # ==========================================================
+    # Review/Handoff agents -> Antigravity Gemini 3 Pro Preview
+    # ==========================================================
+    - from: gemini-2.5-flash-lite
+      to: gemini-3-pro-preview
+    - from: gemini-2.5-flash
+      to: gemini-3-pro-preview
+  force-model-mappings: true
+payload:
+  default: []
+  override: []
