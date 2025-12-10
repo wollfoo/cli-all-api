@@ -1,0 +1,136 @@
+.\" ProxyPal - AI Proxy Server for coding agents
+.\" Man page cho lệnh proxypal chính
+.TH PROXYPAL 1 "December 2024" "0.1.0" "ProxyPal Manual"
+.SH NAME
+proxypal \- AI Proxy Server for Claude, OpenAI, Gemini, and other AI providers
+.SH SYNOPSIS
+.B proxypal
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR]
+.SH DESCRIPTION
+.B ProxyPal
+is a unified proxy server that routes AI API requests to multiple providers
+(Claude, Gemini, OpenAI, Copilot, etc.) with authentication management,
+load balancing, and quota handling. It enables AI coding tools like Cursor,
+Continue, and Claude Code to work seamlessly with various AI providers.
+.PP
+The headless version runs as a daemon service on Ubuntu (systemd) and Windows,
+providing a CLI-based alternative to the desktop GUI application.
+.SH GLOBAL OPTIONS
+.TP
+.BR \-v ", " \-\-verbose
+Increase logging verbosity. Use \fB\-v\fR for info, \fB\-vv\fR for debug,
+\fB\-vvv\fR for trace level logging.
+.TP
+.BR \-c ", " \-\-config " " \fIFILE\fR
+Path to configuration file. Default: \fB~/.config/proxypal/config.yaml\fR.
+Can also be set via \fBPROXYPAL_CONFIG\fR environment variable.
+.TP
+.BR \-q ", " \-\-quiet
+Suppress all output except errors.
+.TP
+.BR \-h ", " \-\-help
+Print help information.
+.TP
+.BR \-V ", " \-\-version
+Print version information.
+.SH COMMANDS
+.TP
+.BR serve " (alias: " start ")"
+Start the proxy server. Runs as daemon by default, use \fB\-\-foreground\fR
+for interactive mode. See \fBproxypal-serve\fR(1).
+.TP
+.BR config " (alias: " cfg ")"
+Configuration file management. Subcommands: \fBinit\fR, \fBvalidate\fR,
+\fBshow\fR, \fBedit\fR. See \fBproxypal-config\fR(1).
+.TP
+.BR auth
+Authentication and API key management. Subcommands: \fBadd\fR, \fBremove\fR,
+\fBlist\fR, \fBtest\fR, \fBimport\fR. See \fBproxypal-auth\fR(1).
+.TP
+.BR stop
+Stop a running daemon. Reads PID from \fB/tmp/proxypal.pid\fR by default.
+.TP
+.BR status
+Show daemon status and check if service is running.
+.TP
+.BR check " (alias: " health ")"
+Show proxy health and provider status. Useful for systemd health checks.
+.SH EXAMPLES
+.PP
+Start the proxy server in foreground:
+.RS
+.B proxypal serve \-\-foreground
+.RE
+.PP
+Start on a custom port with verbose logging:
+.RS
+.B proxypal serve \-\-port 9000 \-vv
+.RE
+.PP
+Initialize a new configuration file:
+.RS
+.B proxypal config init
+.RE
+.PP
+Validate configuration before starting:
+.RS
+.B proxypal config validate
+.RE
+.PP
+Add a Gemini API key:
+.RS
+.B proxypal auth add \-\-provider gemini \-\-api\-key YOUR_API_KEY
+.RE
+.PP
+Use device code flow for authentication:
+.RS
+.B proxypal auth add \-\-provider gemini \-\-device\-code
+.RE
+.PP
+List all configured authentications:
+.RS
+.B proxypal auth list
+.RE
+.PP
+Stop a running daemon:
+.RS
+.B proxypal stop
+.RE
+.SH FILES
+.TP
+.I ~/.config/proxypal/config.yaml
+Default configuration file location.
+.TP
+.I ~/.config/proxypal/auth/
+Directory containing authentication credentials.
+.TP
+.I /tmp/proxypal.pid
+Default PID file for daemon mode.
+.SH ENVIRONMENT
+.TP
+.B PROXYPAL_CONFIG
+Path to configuration file (overrides default).
+.TP
+.B PROXYPAL_OAUTH_CLIENT_ID
+OAuth client ID for device code flow.
+.TP
+.B EDITOR
+Editor to use for \fBproxypal config edit\fR command.
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+General error or health check failed
+.SH SEE ALSO
+.BR proxypal-serve (1),
+.BR proxypal-config (1),
+.BR proxypal-auth (1),
+.BR systemctl (1)
+.SH BUGS
+Report bugs at: https://github.com/wollfoo/cli-all-api/issues
+.SH AUTHOR
+ProxyPal Team <team@proxypal.dev>
+.SH COPYRIGHT
+Copyright \(co 2024 ProxyPal. MIT License.

@@ -1,0 +1,163 @@
+.\" ProxyPal Config - Configuration management
+.\" Man page cho lệnh proxypal config
+.TH PROXYPAL-CONFIG 1 "December 2024" "0.1.0" "ProxyPal Manual"
+.SH NAME
+proxypal-config \- Manage ProxyPal configuration files
+.SH SYNOPSIS
+.B proxypal config
+\fISUBCOMMAND\fR [\fIOPTIONS\fR]
+.PP
+.B proxypal cfg
+\fISUBCOMMAND\fR [\fIOPTIONS\fR]
+.SH DESCRIPTION
+Manage ProxyPal configuration files. Create, validate, display, and edit
+configuration settings for the proxy server.
+.SH SUBCOMMANDS
+.SS init
+Initialize a new configuration file with defaults.
+.PP
+.B proxypal config init
+[\fB\-\-force\fR]
+.TP
+.BR \-f ", " \-\-force
+Overwrite existing configuration file without prompting.
+.SS validate
+Validate configuration file syntax and values.
+.PP
+.B proxypal config validate
+.PP
+Checks for:
+.IP \(bu 2
+Valid YAML syntax
+.IP \(bu 2
+Required fields present
+.IP \(bu 2
+Valid port numbers (1-65535)
+.IP \(bu 2
+Valid provider configurations
+.SS show
+Display current configuration in YAML format.
+.PP
+.B proxypal config show
+.SS edit
+Open configuration file in default editor.
+.PP
+.B proxypal config edit
+.PP
+Uses \fBEDITOR\fR environment variable, defaults to \fBnano\fR.
+.SH CONFIGURATION FILE FORMAT
+The configuration file uses YAML format. Example:
+.PP
+.RS
+.nf
+# Server settings
+server:
+  port: 8317
+  host: "127.0.0.1"
+
+# Logging configuration
+logging:
+  level: info       # debug, info, warn, error
+  format: json      # json, text
+
+# Provider settings
+providers:
+  gemini:
+    enabled: true
+    timeout: 30
+  claude:
+    enabled: true
+    timeout: 60
+  openai:
+    enabled: true
+  copilot:
+    enabled: false
+.fi
+.RE
+.SH CONFIGURATION OPTIONS
+.SS Server Section
+.TP
+.B server.port
+Port to listen on. Range: 1-65535. Default: 8317.
+.TP
+.B server.host
+Host address to bind. Default: "127.0.0.1" (localhost only).
+Use "0.0.0.0" to listen on all interfaces.
+.SS Logging Section
+.TP
+.B logging.level
+Log level: debug, info, warn, error. Default: info.
+.TP
+.B logging.format
+Log format: json (structured) or text (human-readable). Default: json.
+.SS Providers Section
+Each provider can have:
+.TP
+.B enabled
+Boolean. Enable or disable this provider.
+.TP
+.B timeout
+Request timeout in seconds.
+.SH EXAMPLES
+.PP
+Create default config at ~/.config/proxypal/config.yaml:
+.RS
+.B proxypal config init
+.RE
+.PP
+Create config at custom location:
+.RS
+.B proxypal config init \-\-config /etc/proxypal/config.yaml
+.RE
+.PP
+Overwrite existing config:
+.RS
+.B proxypal config init \-\-force
+.RE
+.PP
+Validate default config:
+.RS
+.B proxypal config validate
+.RE
+.PP
+Validate specific config file:
+.RS
+.B proxypal config validate \-\-config /path/to/config.yaml
+.RE
+.PP
+Show current configuration:
+.RS
+.B proxypal config show
+.RE
+.PP
+Edit configuration in default editor:
+.RS
+.B proxypal config edit
+.RE
+.SH FILES
+.TP
+.I ~/.config/proxypal/config.yaml
+Default configuration file location.
+.TP
+.I /etc/proxypal/config.yaml
+System-wide configuration (for service deployment).
+.SH ENVIRONMENT
+.TP
+.B PROXYPAL_CONFIG
+Override default configuration file path.
+.TP
+.B EDITOR
+Editor for \fBproxypal config edit\fR. Default: nano.
+.SH EXIT STATUS
+.TP
+.B 0
+Success (config valid, created, or displayed)
+.TP
+.B 1
+Error (invalid config, file not found, parse error)
+.SH SEE ALSO
+.BR proxypal (1),
+.BR proxypal-serve (1),
+.BR yaml (5)
+.SH AUTHOR
+ProxyPal Team <team@proxypal.dev>

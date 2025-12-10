@@ -1,0 +1,23 @@
+Package: proxypal
+Version: 0.1.0
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.31), libssl3 | libssl1.1, ca-certificates
+Suggests: curl
+Installed-Size: 48548
+Maintainer: ProxyPal Team <team@proxypal.dev>
+Homepage: https://github.com/wollfoo/cli-all-api
+Description: AI Proxy Server for Claude, OpenAI, Gemini, and Copilot
+ ProxyPal is a unified proxy server that provides a single endpoint
+ for multiple AI providers with automatic authentication management,
+ load balancing, and quota handling.
+ .
+ Features:
+  - Unified proxy for Claude, OpenAI, Gemini, Copilot
+  - Automatic API key rotation and quota management
+  - Device code OAuth flow for authentication
+  - Systemd integration for daemon mode
+  - Health check endpoints for monitoring
+ .
+ Works seamlessly with AI coding tools like Cursor, Continue, and Claude Code.

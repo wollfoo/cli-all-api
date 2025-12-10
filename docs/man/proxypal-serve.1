@@ -1,0 +1,104 @@
+.\" ProxyPal Serve - Start the proxy server
+.\" Man page cho lệnh proxypal serve
+.TH PROXYPAL-SERVE 1 "December 2024" "0.1.0" "ProxyPal Manual"
+.SH NAME
+proxypal-serve \- Start the ProxyPal proxy server
+.SH SYNOPSIS
+.B proxypal serve
+[\fIOPTIONS\fR]
+.PP
+.B proxypal start
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+Start the ProxyPal proxy server. By default, the server runs as a daemon
+(background process). Use \fB\-\-foreground\fR to run in interactive mode.
+.PP
+The proxy server listens on the configured port (default: 8317) and routes
+AI API requests to configured providers. It supports OpenAI-compatible API
+format, making it work with tools like Cursor, Continue, and Claude Code.
+.SH OPTIONS
+.TP
+.BR \-p ", " \-\-port " " \fIPORT\fR
+Port to listen on. Overrides the port setting in configuration file.
+Default: 8317.
+.TP
+.BR \-f ", " \-\-foreground
+Run in foreground instead of daemonizing. Useful for debugging and
+when running under systemd.
+.TP
+.BR \-\-pid\-file " " \fIPATH\fR
+PID file path for daemon mode. The PID is written to this file when
+the daemon starts and removed on clean shutdown.
+Default: \fB/tmp/proxypal.pid\fR.
+.SH DAEMON MODE
+When running as a daemon (without \fB\-\-foreground\fR):
+.IP \(bu 2
+Process forks to background
+.IP \(bu 2
+PID is written to PID file
+.IP \(bu 2
+Logs are written to systemd journal or configured log file
+.IP \(bu 2
+Use \fBproxypal stop\fR to terminate
+.SH FOREGROUND MODE
+When running with \fB\-\-foreground\fR:
+.IP \(bu 2
+Process runs in current terminal
+.IP \(bu 2
+Logs are written to stdout/stderr
+.IP \(bu 2
+Press Ctrl+C to terminate
+.IP \(bu 2
+Suitable for systemd services with Type=simple
+.SH EXAMPLES
+.PP
+Start in daemon mode (background):
+.RS
+.B proxypal serve
+.RE
+.PP
+Start in foreground with debug logging:
+.RS
+.B proxypal serve \-\-foreground \-vv
+.RE
+.PP
+Start on custom port:
+.RS
+.B proxypal serve \-\-port 9000
+.RE
+.PP
+Use custom config and PID file:
+.RS
+.B proxypal serve \-\-config /etc/proxypal/config.yaml \-\-pid\-file /var/run/proxypal.pid
+.RE
+.SH SYSTEMD INTEGRATION
+For systemd service, use foreground mode:
+.PP
+.RS
+.nf
+[Service]
+Type=simple
+ExecStart=/usr/bin/proxypal serve \-\-foreground
+ExecStop=/usr/bin/proxypal stop
+.fi
+.RE
+.SH EXIT STATUS
+.TP
+.B 0
+Server started successfully (daemon mode) or shutdown cleanly (foreground)
+.TP
+.B 1
+Failed to start (port in use, config error, etc.)
+.SH FILES
+.TP
+.I ~/.config/proxypal/config.yaml
+Default configuration file.
+.TP
+.I /tmp/proxypal.pid
+Default PID file location.
+.SH SEE ALSO
+.BR proxypal (1),
+.BR proxypal-config (1),
+.BR systemctl (1)
+.SH AUTHOR
+ProxyPal Team <team@proxypal.dev>

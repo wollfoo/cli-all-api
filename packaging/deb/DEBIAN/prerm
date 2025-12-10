@@ -1,0 +1,21 @@
+#!/bin/bash
+# ProxyPal DEB Package Pre-Remove Script
+# Chạy trước khi package được gỡ bỏ
+
+set -e
+
+# Dừng service nếu đang chạy
+if systemctl is-active --quiet proxypal.service 2>/dev/null; then
+    echo "Stopping proxypal service..."
+    systemctl stop proxypal.service
+fi
+
+# Disable service
+if systemctl is-enabled --quiet proxypal.service 2>/dev/null; then
+    echo "Disabling proxypal service..."
+    systemctl disable proxypal.service
+fi
+
+echo "ProxyPal service stopped and disabled."
+
+exit 0

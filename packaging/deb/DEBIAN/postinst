@@ -1,0 +1,71 @@
+#!/bin/bash
+# ProxyPal DEB Package Post-Install Script
+# Chạy sau khi package được cài đặt
+
+set -e
+
+# Tạo user proxypal nếu chưa tồn tại
+if ! id -u proxypal > /dev/null 2>&1; then
+    echo "Creating proxypal user..."
+    useradd --system --no-create-home --shell /usr/sbin/nologin proxypal
+fi
+
+# Tạo directories với quyền đúng
+echo "Creating directories..."
+mkdir -p /etc/proxypal
+mkdir -p /var/log/proxypal
+mkdir -p /var/lib/proxypal/auth
+
+# Set ownership
+chown -R proxypal:proxypal /etc/proxypal
+chown -R proxypal:proxypal /var/log/proxypal
+chown -R proxypal:proxypal /var/lib/proxypal
+
+# Set permissions
+chmod 755 /etc/proxypal
+chmod 755 /var/log/proxypal
+chmod 700 /var/lib/proxypal/auth  # Restricted for auth credentials
+
+# Tạo default config nếu chưa có
+if [ ! -f /etc/proxypal/config.yaml ]; then
+    echo "Creating default config..."
+    cat > /etc/proxypal/config.yaml << 'EOF'
+# ProxyPal Configuration
+# See: https://github.com/wollfoo/cli-all-api
+
+server:
+  port: 8317
+  host: "127.0.0.1"
+
+logging:
+  level: info
+  format: json
+
+# Providers can be configured here or via proxypal auth add
+providers: {}
+EOF
+    chown proxypal:proxypal /etc/proxypal/config.yaml
+    chmod 640 /etc/proxypal/config.yaml
+fi
+
+# Reload systemd và enable service
+echo "Enabling proxypal service..."
+systemctl daemon-reload
+systemctl enable proxypal.service
+
+# Thông báo hoàn thành
+echo ""
+echo "============================================"
+echo "  ProxyPal installed successfully!"
+echo "============================================"
+echo ""
+echo "Next steps:"
+echo "  1. Edit config: /etc/proxypal/config.yaml"
+echo "  2. Add auth:    proxypal auth add --provider gemini --device-code"
+echo "  3. Start:       sudo systemctl start proxypal"
+echo "  4. Status:      sudo systemctl status proxypal"
+echo ""
+echo "Logs: journalctl -u proxypal -f"
+echo ""
+
+exit 0

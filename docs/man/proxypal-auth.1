@@ -1,0 +1,172 @@
+.\" ProxyPal Auth - Authentication management
+.\" Man page cho lệnh proxypal auth
+.TH PROXYPAL-AUTH 1 "December 2024" "0.1.0" "ProxyPal Manual"
+.SH NAME
+proxypal-auth \- Manage authentication credentials for AI providers
+.SH SYNOPSIS
+.B proxypal auth
+\fISUBCOMMAND\fR [\fIOPTIONS\fR]
+.SH DESCRIPTION
+Manage authentication credentials for various AI providers. Supports multiple
+authentication methods including API keys, device code flow (OAuth), and
+credential file import.
+.SH SUBCOMMANDS
+.SS add
+Add authentication credentials for a provider.
+.PP
+.B proxypal auth add
+[\fB\-\-provider\fR \fIPROVIDER\fR] [\fB\-\-api\-key\fR \fIKEY\fR | \fB\-\-device\-code\fR | \fB\-\-file\fR \fIFILE\fR]
+.TP
+.BR \-p ", " \-\-provider " " \fIPROVIDER\fR
+Provider name. Omit for interactive selection.
+.TP
+.BR \-k ", " \-\-api\-key " " \fIKEY\fR
+API key. Use '\-' to read from stdin (more secure).
+.TP
+.BR \-d ", " \-\-device\-code
+Use device code flow (OAuth) for authentication.
+Supported by: gemini, copilot.
+.TP
+.BR \-f ", " \-\-file " " \fIFILE\fR
+Import credential file (JSON format). Useful for Vertex AI service accounts.
+.TP
+.BR \-\-client\-id " " \fICLIENT_ID\fR
+OAuth client ID for device code flow. Can also be set via
+\fBPROXYPAL_OAUTH_CLIENT_ID\fR environment variable.
+.SS remove
+Remove authentication for a provider.
+.PP
+.B proxypal auth remove
+\fB\-\-provider\fR \fIPROVIDER\fR
+.SS list
+List all configured authentications.
+.PP
+.B proxypal auth list
+.SS test
+Test authentication for a provider (verify credentials work).
+.PP
+.B proxypal auth test
+\fB\-\-provider\fR \fIPROVIDER\fR
+.SS import
+Import credentials from file or directory.
+.PP
+.B proxypal auth import
+\fIPATH\fR [\fB\-\-provider\fR \fIPROVIDER\fR]
+.TP
+.I PATH
+Path to credential file or directory containing multiple credential files.
+.TP
+.BR \-p ", " \-\-provider " " \fIPROVIDER\fR
+Override auto-detected provider.
+.SH SUPPORTED PROVIDERS
+.TP
+.B gemini
+Google Gemini API. Supports API key and device code flow.
+.TP
+.B copilot
+GitHub Copilot. Supports device code flow only.
+.TP
+.B claude
+Anthropic Claude API. Supports API key only.
+.TP
+.B openai
+OpenAI API. Supports API key only.
+.TP
+.B vertex
+Google Vertex AI. Supports service account JSON file.
+.TP
+.B qwen
+Alibaba Qwen API. Supports API key only.
+.TP
+.B codex
+OpenAI Codex API. Supports API key only.
+.SH SUPPORTED IMPORT FORMATS
+.TP
+.B JSON
+\fB{"api_key": "...", "provider": "..."}\fR
+.TP
+.B YAML
+\fBapi_key: ...\\nprovider: ...\fR
+.TP
+.B Env
+\fBANTHROPIC_API_KEY=sk-ant-...\fR
+.TP
+.B Vertex
+Google service account JSON file.
+.SH EXAMPLES
+.PP
+Use device code flow for Gemini (recommended):
+.RS
+.B proxypal auth add \-\-provider gemini \-\-device\-code
+.RE
+.PP
+Use device code flow for Copilot:
+.RS
+.B proxypal auth add \-\-provider copilot \-\-device\-code
+.RE
+.PP
+Add Gemini API key directly:
+.RS
+.B proxypal auth add \-\-provider gemini \-\-api\-key AIzaSy...
+.RE
+.PP
+Add API key from stdin (more secure):
+.RS
+.B echo 'YOUR_KEY' | proxypal auth add \-\-provider claude \-\-api\-key \-
+.RE
+.PP
+Import Vertex AI service account:
+.RS
+.B proxypal auth add \-\-provider vertex \-\-file service-account.json
+.RE
+.PP
+Interactive mode (select provider and method):
+.RS
+.B proxypal auth add
+.RE
+.PP
+Import credentials from file:
+.RS
+.B proxypal auth import credentials.json
+.RE
+.PP
+Import with provider override:
+.RS
+.B proxypal auth import \-\-provider claude api-key.json
+.RE
+.PP
+Import from env file:
+.RS
+.B proxypal auth import .env
+.RE
+.PP
+Import all files from directory:
+.RS
+.B proxypal auth import ./credentials/
+.RE
+.PP
+List configured authentications:
+.RS
+.B proxypal auth list
+.RE
+.PP
+Remove authentication:
+.RS
+.B proxypal auth remove \-\-provider gemini
+.RE
+.SH FILES
+.TP
+.I ~/.config/proxypal/auth/
+Directory containing authentication credentials.
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+Authentication error (invalid key, import failed, etc.)
+.SH SEE ALSO
+.BR proxypal (1),
+.BR proxypal-config (1)
+.SH AUTHOR
+ProxyPal Team <team@proxypal.dev>

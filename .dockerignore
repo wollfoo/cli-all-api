@@ -1,0 +1,89 @@
+# =============================================================================
+# ProxyPal Docker Build Ignore
+# Exclude unnecessary files from Docker build context
+# =============================================================================
+
+# Git
+.git
+.gitignore
+
+# Build outputs (sẽ build trong container)
+dist/
+target/
+src-headless/target/
+src-tauri/target/
+
+# Node.js artifacts (không cần cho headless)
+node_modules/
+bun.lock
+pnpm-lock.yaml
+package-lock.json
+
+# IDE và Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment / Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+# APM system (build artifacts không cần)
+.apm/
+.agent/
+.handoff/
+.beads/
+.opencode/
+
+# Documentation (không cần trong image)
+docs/
+*.md
+!README.md
+
+# Test files
+*.test.*
+*.spec.*
+tests/
+__tests__/
+
+# Frontend source (chỉ cần headless)
+src/
+public/
+index.html
+vite.config.ts
+tailwind.config.js
+postcss.config.js
+tsconfig*.json
+
+# Prompts và misc
+prompts/
+cauhoi.md
+
+# Tauri GUI source (không cần cho headless container)
+# Giữ lại src-tauri/binaries/ vì cần CLIProxyAPI binary
+src-tauri/src/
+src-tauri/icons/
+src-tauri/Cargo.toml
+src-tauri/tauri.conf.json
+src-tauri/capabilities/
+src-tauri/gen/
+src-tauri/logs/
+
+# Scripts (build trong container, không cần external scripts)
+scripts/
+
+# Makefile (local build tool)
+Makefile

@@ -1,0 +1,66 @@
+# ProxyPal Systemd Service Unit File
+# Đặt tại: /etc/systemd/system/proxypal.service
+#
+# Commands:
+#   systemctl start proxypal    - Khởi động service
+#   systemctl stop proxypal     - Dừng service
+#   systemctl restart proxypal  - Khởi động lại service
+#   systemctl status proxypal   - Kiểm tra trạng thái
+#   journalctl -u proxypal -f   - Xem logs theo thời gian thực
+
+[Unit]
+Description=ProxyPal - AI Proxy Server for Coding Agents
+Documentation=https://github.com/wollfoo/cli-all-api
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=proxypal
+Group=proxypal
+
+# Main command - chạy foreground mode (systemd quản lý lifecycle)
+ExecStart=/usr/local/bin/proxypal serve --foreground --config /etc/proxypal/config.yaml
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+
+# Environment
+Environment=RUST_LOG=info
+Environment=PROXYPAL_CONFIG=/etc/proxypal/config.yaml
+
+# Logging - output to journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=proxypal
+
+# Security Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+
+# Allow read-write to config directory
+ReadWritePaths=/etc/proxypal
+ReadWritePaths=/var/log/proxypal
+RuntimeDirectory=proxypal
+RuntimeDirectoryMode=0755
+
+# Network permissions
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Graceful shutdown
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

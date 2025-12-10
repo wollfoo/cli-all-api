@@ -1,0 +1,90 @@
+# =============================================================================
+# ProxyPal Docker Compose Configuration
+# Container orchestration cho development và production
+# =============================================================================
+
+services:
+  proxypal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        CLIPROXYAPI_BINARY: src-tauri/binaries/cliproxyapi-x86_64-unknown-linux-gnu
+    image: proxypal:latest
+    container_name: proxypal
+    
+    # Port mapping - default ProxyPal port
+    ports:
+      - "8317:8317"
+    
+    # Volume mounts cho config và auth
+    volumes:
+      - ./config:/etc/proxypal:ro
+      - ./auth:/var/lib/proxypal/auth
+      - proxypal-logs:/var/log/proxypal
+    
+    # Environment variables
+    environment:
+      - RUST_LOG=info
+      - PROXYPAL_CONFIG=/etc/proxypal/config.yaml
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "proxypal", "check", "--port", "8317"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Resource limits (optional - tune based on workload)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Network
+    networks:
+      - proxypal-network
+
+# Named volumes
+volumes:
+  proxypal-logs:
+    driver: local
+
+# Networks
+networks:
+  proxypal-network:
+    driver: bridge
+
+# =============================================================================
+# Usage Examples:
+# =============================================================================
+# Development:
+#   docker compose up --build
+#
+# Production:
+#   docker compose -f docker-compose.yml up -d
+#
+# View logs:
+#   docker compose logs -f proxypal
+#
+# Healthcheck:
+#   docker compose exec proxypal proxypal check
+#
+# Stop:
+#   docker compose down
+# =============================================================================
